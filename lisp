@@ -15,6 +15,8 @@ my $SCOPE = {
     '/' => ['builtin', sub { return ['number', shift()->[1]/shift()->[1]] }],
     '>' => ['builtin', sub { return (shift()->[1] > shift()->[1]) ? $TRUE : $FALSE }],
     '<' => ['builtin', sub { return (shift()->[1] < shift()->[1]) ? $TRUE : $FALSE }],
+    '>=' => ['builtin', sub { return (shift()->[1] >= shift()->[1]) ? $TRUE : $FALSE }],
+    '<=' => ['builtin', sub { return (shift()->[1] <= shift()->[1]) ? $TRUE : $FALSE }],
     'car' => ['builtin', sub {
         my ($pair) = shift;
         return undef if !$pair || $pair->[0] ne 'pair';
@@ -60,7 +62,7 @@ sub rep {
 sub _read {
     my ($str) = @_;
     my @tokens;
-    while ($str =~ s/^\s*([()]|[a-zA-Z0-9._\-+*\/#'><]+|;.*)\s*//) {
+    while ($str =~ s/^\s*([()]|[a-zA-Z0-9._\-+*\/#'><=]+|;.*)\s*//) {
         push @tokens, $1 unless $1 =~ /^;/;
     }
     if ($str ne '') {
