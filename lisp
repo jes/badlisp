@@ -14,7 +14,7 @@ my @TOKENS;
 print "user> ";
 while (my $line = <>) {
     chomp $line;
-    rep($line);
+    rep($line) if $line =~ /\S/;
     print "user> ";
 }
 
