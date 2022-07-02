@@ -6,7 +6,8 @@ use warnings;
 my $FALSE = undef;
 my $TRUE = ['symbol','#t'];
 
-my %VARIABLES = (
+my $SCOPE = {
+    __parent_scope => undef,
     '#t' => $TRUE,
     '+' => ['builtin', sub { return ['number', shift()->[1]+shift()->[1]] }],
     '-' => ['builtin', sub { return ['number', shift()->[1]-shift()->[1]] }],
@@ -16,12 +17,12 @@ my %VARIABLES = (
     '<' => ['builtin', sub { return (shift()->[1] < shift()->[1]) ? $TRUE : $FALSE }],
     'car' => ['builtin', sub {
         my ($pair) = shift;
-        return undef if !$pair || !$pair->[0] ne 'pair';
+        return undef if !$pair || $pair->[0] ne 'pair';
         return $pair->[1];
     }],
     'cdr' => ['builtin', sub {
         my ($pair) = shift;
-        return undef if !$pair || !$pair->[0] ne 'pair';
+        return undef if !$pair || $pair->[0] ne 'pair';
         return $pair->[2];
     }],
     'cons' => ['builtin', sub {
@@ -38,7 +39,7 @@ my %VARIABLES = (
         }
         return $list;
     }],
-);
+};
 my @TOKENS;
 
 include("lib.l");
@@ -99,9 +100,9 @@ sub _eval {
                     return undef;
                 }
                 #print "declare $name = " . _print($form->[2][2][1]) . "\n";
-                $VARIABLES{$name} = undef;
-                $VARIABLES{$name} = _eval($form->[2][2][1]);
-                return $VARIABLES{$name};
+                $SCOPE->{$name} = undef;
+                $SCOPE->{$name} = _eval($form->[2][2][1]);
+                return $SCOPE->{$name};
             } elsif ($form->[1][1] eq 'if') {
                 my $cond = $form->[2][1];
                 my $then = $form->[2][2][1];
@@ -124,8 +125,9 @@ sub _eval {
     } elsif ($type eq 'symbol') {
         # symbol evaluates to the variable associated with the name
         my $name = $form->[1];
-        if (exists $VARIABLES{$name}) {
-            return $VARIABLES{$name};
+        my ($var,$ok) = lookup($name);
+        if ($ok) {
+            return $var;
         } else {
             print STDERR "unrecognised symbol: $name\n";
             return undef;
@@ -165,17 +167,22 @@ sub call {
     my $type = $operator->[0];
     if ($type eq 'procedure') {
         #print "eval procedure with arguments: " . join(',',map { _print($_) } @operands) . "\n";
-        # XXX: we shouldn't stick function parameters in global scope!
+        # XXX: we want lexical scope instead of dynamic scope
         if (@operands != @{ $operator->[1] }) {
             print STDERR "called procedure with wrong number of arguments\n";
             return undef;
         }
+        $SCOPE = {
+            __parent_scope => $SCOPE,
+        };
         for my $formal (@{ $operator->[1] }) {
-            $VARIABLES{$formal} = shift @operands;
-            #print " ... $formal = " . _print($VARIABLES{$formal}) . "\n";
+            $SCOPE->{$formal} = shift @operands;
+            #print " ... $formal = " . _print($SCOPE->{$formal}) . "\n";
         }
         #print "procedure = " . _print($operator->[2]) . "\n";
-        return _eval($operator->[2]);
+        my $r = _eval($operator->[2]);
+        $SCOPE = $SCOPE->{__parent_scope};
+        return $r;
         # TODO: evaluate multiple statements (operator = operator->[2], eval while operator)
     } elsif ($type eq 'builtin') {
         my $fn = $operator->[1];
@@ -292,7 +299,7 @@ sub include {
     close $fh;
     my $form = _read($code);
     while ($form) {
-        print "form = " . _print($form) . "\n";
+        #print "form = " . _print($form) . "\n";
         _eval($form);
         if (@TOKENS) {
             $form = read_form();
@@ -300,4 +307,14 @@ sub include {
             $form = undef;
         }
     }
+}
+
+sub lookup {
+    my ($name) = @_;
+    my $scope = $SCOPE;
+    while ($scope) {
+        return ($scope->{$name},1) if exists $scope->{$name};
+        $scope = $scope->{__parent_scope};
+    }
+    return (undef,0);
 }
