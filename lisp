@@ -4,12 +4,16 @@ use strict;
 use warnings;
 
 my %VARIABLES = (
+    '#t' => ['symbol', '#t'],
     '+' => ['builtin', sub { return ['number', shift()->[1]+shift()->[1]] }],
     '-' => ['builtin', sub { return ['number', shift()->[1]-shift()->[1]] }],
     '*' => ['builtin', sub { return ['number', shift()->[1]*shift()->[1]] }],
     '/' => ['builtin', sub { return ['number', shift()->[1]/shift()->[1]] }],
 );
 my @TOKENS;
+
+my $FALSE = undef;
+my $TRUE = $VARIABLES{'#t'};
 
 print "user> ";
 while (my $line = <>) {
@@ -69,6 +73,15 @@ sub _eval {
                 $VARIABLES{$name} = undef;
                 $VARIABLES{$name} = _eval($form->[2][2][1]);
                 return $VARIABLES{$name};
+            } elsif ($form->[1][1] eq 'if') {
+                my $cond = $form->[2][1];
+                my $then = $form->[2][2][1];
+                my $else = $form->[2][2][2][1];
+                if (_eval($cond)) {
+                    return _eval($then);
+                } else {
+                    return _eval($else);
+                }
             }
         }
 
@@ -124,6 +137,10 @@ sub call {
     if ($type eq 'procedure') {
         #print "eval procedure with arguments: " . join(',',map { _print($_) } @operands) . "\n";
         # XXX: we shouldn't stick function parameters in global scope!
+        if (@operands != @{ $operator->[1] }) {
+            print STDERR "called procedure with wrong number of arguments\n";
+            return undef;
+        }
         for my $formal (@{ $operator->[1] }) {
             $VARIABLES{$formal} = shift @operands;
             #print " ... $formal = " . _print($VARIABLES{$formal}) . "\n";
@@ -189,6 +206,9 @@ sub read_atom {
     if ($token =~ /^\d/) { # number
         return ['number', int($token)];
     } else { # symbol
+        if ($token eq '#f') {
+            return $FALSE;
+        }
         return ['symbol', $token];
     }
 }
