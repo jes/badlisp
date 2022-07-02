@@ -27,7 +27,7 @@ sub rep {
 sub _read {
     my ($str) = @_;
     my @tokens;
-    while ($str =~ s/^\s*([()]|[a-zA-Z0-9._\-+#']+|;.*)\s*//) {
+    while ($str =~ s/^\s*([()]|[a-zA-Z0-9._\-+*\/#']+|;.*)\s*//) {
         push @tokens, $1 unless $1 =~ /^;/;
     }
     if ($str ne '') {
@@ -46,14 +46,39 @@ sub _eval {
     my $type = $form->[0];
     #print " ---> $type\n";
     if ($type eq 'pair') {
-        my $operator = _eval($form->[1]);
+        if ($form->[1][0] eq 'symbol') {
+            if ($form->[1][1] eq 'lambda') {
+                my @formals;
+                if ($form->[2][1][0] eq 'symbol') {
+                    # one argument
+                    @formals = ($form->[2][1][1]);
+                } elsif ($form->[2][1][0] eq 'pair') {
+                    # many arguments
+                    @formals = collect_symbols($form->[2][1]);
+                }
+                return ['procedure', \@formals, $form->[2][2][1]];
+            } elsif ($form->[1][1] eq 'def') {
+                my $name;
+                if ($form->[2][1][0] eq 'symbol') {
+                    $name = $form->[2][1][1];
+                } else {
+                    print STDERR "def should have a symbol\n";
+                    return undef;
+                }
+                #print "declare $name = " . _print($form->[2][2][1]) . "\n";
+                $VARIABLES{$name} = undef;
+                $VARIABLES{$name} = _eval($form->[2][2][1]);
+                return $VARIABLES{$name};
+            }
+        }
+
         my @operands;
-        $form = $form->[2];
         while ($form) {
             push @operands, _eval($form->[1]);
             $form = $form->[2];
         }
-        return call($operator, @operands);
+        # first operand is function, rest are args
+        return call(@operands);
     } elsif ($type eq 'symbol') {
         # symbol evaluates to the variable associated with the name
         my $name = $form->[1];
@@ -79,8 +104,13 @@ sub call {
     my ($operator, @operands) = @_;
     my $type = $operator->[0];
     if ($type eq 'procedure') {
-        print STDERR "calling procedures not implemented\n";
-        return undef;
+        #print "eval procedure with arguments: " . join(',',map { _print($_) } @operands) . "\n";
+        # XXX: we shouldn't stick function parameters in global scope!
+        for my $formal (@{ $operator->[1] }) {
+            $VARIABLES{$formal} = shift @operands;
+        }
+        #print "procedure = " . _print($operator->[2]) . "\n";
+        return _eval($operator->[2]);
     } elsif ($type eq 'builtin') {
         my $fn = $operator->[1];
         return $fn->(@operands);
@@ -157,6 +187,10 @@ sub print_form {
         } else {
             return '(' . print_form($form->[1]) . ' . ' . print_form($form->[2]) . ')';
         }
+    } elsif ($type eq 'builtin') {
+        return "#<builtin>";
+    } elsif ($type eq 'procedure') {
+        return "#<procedure>";
     } else {
         print STDERR "unrecognised type: $type\n";
         return '()';
