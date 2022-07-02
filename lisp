@@ -9,6 +9,12 @@ my %VARIABLES = (
     '-' => ['builtin', sub { return ['number', shift()->[1]-shift()->[1]] }],
     '*' => ['builtin', sub { return ['number', shift()->[1]*shift()->[1]] }],
     '/' => ['builtin', sub { return ['number', shift()->[1]/shift()->[1]] }],
+    'car' => ['builtin', sub { return shift()->[1] }],
+    'cdr' => ['builtin', sub { return shift()->[2] }],
+    'cons' => ['builtin', sub {
+        my ($car, $cdr) = @_;
+        return ['pair', $car, $cdr];
+    }],
 );
 my @TOKENS;
 
