@@ -18,3 +18,7 @@
 (def sqrt (lambda x
     (sqrt-helper x 0)
 ))
+
+(def fact (lambda x
+    (if (> x 1) (* x (fact (- x 1))) 1)
+))
