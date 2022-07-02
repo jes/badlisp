@@ -64,6 +64,7 @@ sub _eval {
                     @formals = collect_formals($form->[2][1]);
                 } elsif ($form->[2][1][0] eq 'symbol') {
                     # one argument
+                    # TODO: this should pass the arguments as a list
                     @formals = ($form->[2][1][1]);
                 }
                 return ['procedure', \@formals, $form->[2][2][1]];
