@@ -3,23 +3,45 @@
 use strict;
 use warnings;
 
+my $FALSE = undef;
+my $TRUE = ['symbol','#t'];
+
 my %VARIABLES = (
-    '#t' => ['symbol', '#t'],
+    '#t' => $TRUE,
     '+' => ['builtin', sub { return ['number', shift()->[1]+shift()->[1]] }],
     '-' => ['builtin', sub { return ['number', shift()->[1]-shift()->[1]] }],
     '*' => ['builtin', sub { return ['number', shift()->[1]*shift()->[1]] }],
     '/' => ['builtin', sub { return ['number', shift()->[1]/shift()->[1]] }],
-    'car' => ['builtin', sub { return shift()->[1] }],
-    'cdr' => ['builtin', sub { return shift()->[2] }],
+    '>' => ['builtin', sub { return (shift()->[1] > shift()->[1]) ? $TRUE : $FALSE }],
+    '<' => ['builtin', sub { return (shift()->[1] < shift()->[1]) ? $TRUE : $FALSE }],
+    'car' => ['builtin', sub {
+        my ($pair) = shift;
+        return undef if !$pair || !$pair->[0] ne 'pair';
+        return $pair->[1];
+    }],
+    'cdr' => ['builtin', sub {
+        my ($pair) = shift;
+        return undef if !$pair || !$pair->[0] ne 'pair';
+        return $pair->[2];
+    }],
     'cons' => ['builtin', sub {
         my ($car, $cdr) = @_;
         return ['pair', $car, $cdr];
     }],
+    'list' => ['builtin', sub {
+        return undef if !@_;
+        my $list = ['pair', shift @_, undef];
+        my $p = $list;
+        while (@_) {
+            $p->[2] = ['pair', shift @_, undef];
+            $p = $p->[2];
+        }
+        return $list;
+    }],
 );
 my @TOKENS;
 
-my $FALSE = undef;
-my $TRUE = $VARIABLES{'#t'};
+include("lib.l");
 
 print "user> ";
 while (my $line = <>) {
@@ -37,7 +59,7 @@ sub rep {
 sub _read {
     my ($str) = @_;
     my @tokens;
-    while ($str =~ s/^\s*([()]|[a-zA-Z0-9._\-+*\/#']+|;.*)\s*//) {
+    while ($str =~ s/^\s*([()]|[a-zA-Z0-9._\-+*\/#'><]+|;.*)\s*//) {
         push @tokens, $1 unless $1 =~ /^;/;
     }
     if ($str ne '') {
@@ -154,6 +176,7 @@ sub call {
         }
         #print "procedure = " . _print($operator->[2]) . "\n";
         return _eval($operator->[2]);
+        # TODO: evaluate multiple statements (operator = operator->[2], eval while operator)
     } elsif ($type eq 'builtin') {
         my $fn = $operator->[1];
         return $fn->(@operands);
@@ -258,5 +281,23 @@ sub print_list {
         return print_form($form->[1]) . ' ' . print_list($form->[2]);
     } else {
         return print_form($form->[1]);
+    }
+}
+
+sub include {
+    my ($name) = @_;
+    open (my $fh, '<', $name)
+        or die "can't read $name: $!\n";
+    my $code = join('', <$fh>);
+    close $fh;
+    my $form = _read($code);
+    while ($form) {
+        print "form = " . _print($form) . "\n";
+        _eval($form);
+        if (@TOKENS) {
+            $form = read_form();
+        } else{
+            $form = undef;
+        }
     }
 }
