@@ -49,12 +49,12 @@ sub _eval {
         if ($form->[1][0] eq 'symbol') {
             if ($form->[1][1] eq 'lambda') {
                 my @formals;
-                if ($form->[2][1][0] eq 'symbol') {
+                if (!defined $form->[2][1] || $form->[2][1][0] eq 'pair') {
+                    # zero or many arguments
+                    @formals = collect_formals($form->[2][1]);
+                } elsif ($form->[2][1][0] eq 'symbol') {
                     # one argument
                     @formals = ($form->[2][1][1]);
-                } elsif ($form->[2][1][0] eq 'pair') {
-                    # many arguments
-                    @formals = collect_symbols($form->[2][1]);
                 }
                 return ['procedure', \@formals, $form->[2][2][1]];
             } elsif ($form->[1][1] eq 'def') {
@@ -94,6 +94,24 @@ sub _eval {
     }
 }
 
+sub collect_formals {
+    my ($list) = @_;
+    if (!is_list($list)) {
+        print STDERR "non-list of formals\n";
+        return undef;
+    }
+    my @formals;
+    while ($list) {
+        if ($list->[1][0] ne 'symbol') {
+            print STDERR "non-symbol formal\n";
+            return undef;
+        }
+        push @formals, $list->[1][1];
+        $list = $list->[2];
+    }
+    return @formals;
+}
+
 # turn the given form into a string
 sub _print {
     my ($form) = @_;
@@ -108,6 +126,7 @@ sub call {
         # XXX: we shouldn't stick function parameters in global scope!
         for my $formal (@{ $operator->[1] }) {
             $VARIABLES{$formal} = shift @operands;
+            #print " ... $formal = " . _print($VARIABLES{$formal}) . "\n";
         }
         #print "procedure = " . _print($operator->[2]) . "\n";
         return _eval($operator->[2]);
