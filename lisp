@@ -17,6 +17,10 @@ my $SCOPE = {
     '<' => ['builtin', sub { return (shift()->[1] < shift()->[1]) ? $TRUE : $FALSE }],
     '>=' => ['builtin', sub { return (shift()->[1] >= shift()->[1]) ? $TRUE : $FALSE }],
     '<=' => ['builtin', sub { return (shift()->[1] <= shift()->[1]) ? $TRUE : $FALSE }],
+    '=' => ['builtin', sub { return (shift()->[1] == shift()->[1]) ? $TRUE : $FALSE }],
+    'modulo' => ['builtin', sub { return ['number', shift()->[1] % shift()->[1]] }],
+    'or' => ['builtin', sub { return (shift()->[1] || shift()->[1]) ? $TRUE : $FALSE }],
+    'and' => ['builtin', sub { return (shift()->[1] && shift()->[1]) ? $TRUE : $FALSE }],
     'car' => ['builtin', sub {
         my ($pair) = shift;
         return undef if !$pair || $pair->[0] ne 'pair';

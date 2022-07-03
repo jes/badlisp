@@ -22,3 +22,13 @@
 (def fact (lambda x
     (if (> x 1) (* x (fact (- x 1))) 1)
 ))
+
+(def pe-1-helper (lambda x
+    (if (> x 0)
+          (if (or (= (modulo x 3) 0) (= (modulo x 5) 0)) (list x (pe-1-helper (- x 1))) (pe-1-helper (- x 1)))
+          ())
+))
+
+(def project-euler-1 (lambda ()
+    (+ (pe-1-helper 1000))
+))
