@@ -62,7 +62,7 @@ sub rep {
 sub _read {
     my ($str) = @_;
     my @tokens;
-    while ($str =~ s/^\s*([()]|[a-zA-Z0-9._\-+*\/#'><=]+|;.*)\s*//) {
+    while ($str =~ s/^\s*([()',]|[a-zA-Z0-9._\-+*\/#'><=]+|;.*)\s*//) {
         push @tokens, $1 unless $1 =~ /^;/;
     }
     if ($str ne '') {
@@ -114,6 +114,8 @@ sub _eval {
                 } else {
                     return _eval($else);
                 }
+            } elsif ($form->[1][1] eq 'quote') {
+                return $form->[2][1];
             }
         }
 
@@ -244,6 +246,8 @@ sub read_atom {
 
     if ($token =~ /^\d/) { # number
         return ['number', int($token)];
+    } elsif ($token eq "'") { # quote
+        return ['pair', ['symbol', 'quote'], ['pair', read_form(), undef]];
     } else { # symbol
         if ($token eq '#f') {
             return $FALSE;
