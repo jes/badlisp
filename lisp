@@ -92,7 +92,7 @@ sub _eval {
                     # TODO: this should pass the arguments as a list
                     @formals = ($form->[2][1][1]);
                 }
-                return ['procedure', \@formals, $form->[2][2][1]];
+                return ['procedure', \@formals, $form->[2][2][1], $SCOPE];
             } elsif ($form->[1][1] eq 'def') {
                 my $name;
                 if ($form->[2][1][0] eq 'symbol') {
@@ -169,13 +169,13 @@ sub call {
     my $type = $operator->[0];
     if ($type eq 'procedure') {
         #print "eval procedure with arguments: " . join(',',map { _print($_) } @operands) . "\n";
-        # XXX: we want lexical scope instead of dynamic scope
         if (@operands != @{ $operator->[1] }) {
             print STDERR "called procedure with wrong number of arguments\n";
             return undef;
         }
+        my $oldscope = $SCOPE;
         $SCOPE = {
-            __parent_scope => $SCOPE,
+            __parent_scope => $operator->[3],
         };
         for my $formal (@{ $operator->[1] }) {
             $SCOPE->{$formal} = shift @operands;
@@ -183,7 +183,7 @@ sub call {
         }
         #print "procedure = " . _print($operator->[2]) . "\n";
         my $r = _eval($operator->[2]);
-        $SCOPE = $SCOPE->{__parent_scope};
+        $SCOPE = $oldscope;
         return $r;
         # TODO: evaluate multiple statements (operator = operator->[2], eval while operator)
     } elsif ($type eq 'builtin') {
