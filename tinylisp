@@ -30,7 +30,7 @@ my $ENV = {
     eq => sub { my ($a,$b) = @_; return $TRUE if null($a) && null($b); return ($a eq $b) ? $TRUE : $FALSE; },
 };
 
-print _print(_eval(_read(), 200)), "\n";
+print _print(_eval(_read())), "\n";
 
 sub _eval {
     my ($form) = @_;
