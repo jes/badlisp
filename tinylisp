@@ -1,0 +1,136 @@
+#!/usr/bin/perl
+
+# intention is to run the meta-circular evaluator
+
+# only support:
+# - car
+# - cdr
+# - cons
+# - quote
+# - atom
+# - eq
+# - lambda
+# - cond
+
+# lists are just perl lists, not complicated cons ones
+# a list item is a symbol if !ref $item, and an arrayref otherwise
+
+use strict;
+use warnings;
+
+my $FALSE = [];
+my $TRUE = 't';
+
+my @TOKENS;
+my $ENV = {
+    car => sub { return shift->[0] },
+    cdr => sub { my @f = @{shift()};shift @f;return \@f },
+    cons => sub { my ($first, $rest) = @_; return [$first, @$rest]; },
+    atom => sub { return (ref shift) ? $FALSE : $TRUE },
+    eq => sub { return shift() eq shift() ? $TRUE : $FALSE },
+};
+
+print "> ";
+while (<>) {
+    print _print(_eval(_read($_), $ENV));
+    print "\n";
+    print "> ";
+}
+
+sub _eval {
+    my ($form, $env) = @_;
+    return lookup($form, $env) if !ref $form;
+
+    my $op = _eval(car($form), $env);
+
+    if (ref $op eq 'CODE') {
+        return $op->(map { _eval($_, $env) } @{ cdr($form) });
+    } elsif ($op eq 'quote') {
+        return $form->[1];
+    } elsif ($op eq 'lambda') {
+        # form[0] = 'lambda'
+        # form[1] = formals
+        # form[2] = body
+        my $parent_env = $ENV;
+        return sub {
+            my @formals = @{ $form->[1] };
+            my $env = {__parent => $parent_env};
+            while (my $f = shift @formals) {
+                $env->{$f} = shift @_;
+            }
+            return _eval($form->[2], $env);
+        };
+    } elsif ($op eq 'cond') {
+        # form[0] = 'cond'
+        # form[1..] = [condition, body]
+        for (my $i = 1; $i < @$form; $i++) {
+            if (!null(_eval($form->[$i][0],$env))) {
+                return _eval($form->[$i][1], $env);
+            }
+        }
+    }
+
+    return [];
+}
+
+sub null {
+    my ($form) = @_;
+    return ref $form eq 'ARRAY' && @$form == 0;
+}
+
+sub lookup {
+    my ($name, $env) = @_;
+    return $env->{$name} if exists $env->{$name};
+    return lookup($name, $env->{__parent}) if exists $env->{__parent};
+    return $name;
+}
+
+sub car {
+    my ($form) = @_;
+    return $form->[0];
+}
+
+sub cdr {
+    my ($form) = @_;
+    my @f = @$form;
+    shift @f;
+    return \@f;
+}
+
+sub _read {
+    my ($str) = @_;
+    $str =~ s/([()])/ $1 /g;
+    @TOKENS = grep { $_ } split /\s+/, $str;
+    return read_form();
+}
+
+sub read_form {
+    if ($TOKENS[0] eq '(') {
+        return read_list();
+    } else {
+        return read_atom();
+    }
+}
+
+sub read_atom {
+    return shift @TOKENS;
+}
+
+sub read_list {
+    my @list;
+    shift @TOKENS; # (
+    while ($TOKENS[0] ne ')') {
+        push @list, read_form();
+    }
+    shift @TOKENS; # )
+    return \@list;
+}
+
+sub _print {
+    my ($v) = @_;
+    if (ref $v eq 'ARRAY') {
+        return '('.join(' ', map { _print($_) } @$v).')';
+    } else {
+        return $v;
+    }
+}
