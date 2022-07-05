@@ -19,8 +19,18 @@ my $SCOPE = {
     '<=' => ['builtin', sub { return (shift()->[1] <= shift()->[1]) ? $TRUE : $FALSE }],
     '=' => ['builtin', sub { return (shift()->[1] == shift()->[1]) ? $TRUE : $FALSE }],
     'modulo' => ['builtin', sub { return ['number', shift()->[1] % shift()->[1]] }],
-    'or' => ['builtin', sub { return (shift()->[1] || shift()->[1]) ? $TRUE : $FALSE }],
-    'and' => ['builtin', sub { return (shift()->[1] && shift()->[1]) ? $TRUE : $FALSE }],
+    'or' => ['builtin', sub {
+        my ($a,$b) = @_;
+        my $atrue = $a && $a->[1];
+        my $btrue = $b && $b->[1];
+        return $atrue || $btrue ? $TRUE : $FALSE;
+    }],
+    'and' => ['builtin', sub {
+        my ($a,$b) = @_;
+        my $atrue = $a && $a->[1];
+        my $btrue = $b && $b->[1];
+        return $atrue && $btrue ? $TRUE : $FALSE;
+    }],
     'car' => ['builtin', sub {
         my ($pair) = shift;
         return undef if !$pair || $pair->[0] ne 'pair';
@@ -66,7 +76,7 @@ sub rep {
 sub _read {
     my ($str) = @_;
     my @tokens;
-    while ($str =~ s/^\s*([()',]|[a-zA-Z0-9._\-+*\/#'><=]+|;.*)\s*//) {
+    while ($str =~ s/^\s*([()',]|[a-zA-Z0-9._\-+*\/#'><=?]+|;.*)\s*//) {
         push @tokens, $1 unless $1 =~ /^;/;
     }
     if ($str ne '') {
@@ -80,6 +90,7 @@ sub _read {
 # evaluate the given form
 sub _eval {
     my ($form) = @_;
+    no warnings 'recursion';
     #print "EVAL: " . _print($form) . "\n";
     return undef if !defined $form;
     my $type = $form->[0];
@@ -172,6 +183,7 @@ sub _print {
 
 sub call {
     my ($operator, @operands) = @_;
+    no warnings 'recursion';
     my $type = $operator->[0];
     if ($type eq 'procedure') {
         #print "eval procedure with arguments: " . join(',',map { _print($_) } @operands) . "\n";
