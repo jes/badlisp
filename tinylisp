@@ -30,52 +30,33 @@ my $ENV = {
     eq => sub { my ($a,$b) = @_; return $TRUE if null($a) && null($b); return ($a eq $b) ? $TRUE : $FALSE; },
 };
 
-my $nlamb = 0;
-
 print _print(_eval(_read(), 200)), "\n";
 
 sub _eval {
-    my $r = __eval(@_);
-    print "<-- " . _print($r) . "\n";
-    return $r;
-}
-
-sub __eval {
-    my ($form, $level) = @_;
-    $level //= 0;
-
-    print "[$level] EVAL " . _print($form) . "\n";
-    print "[$level] --> ENV = " . dump_env($ENV) . "\n";
+    my ($form) = @_;
 
     return lookup($form, $ENV) if !ref $form;
 
     return $form if null($form);
-    my $op = _eval($form->[0],$level+1);
+    my $op = _eval($form->[0]);
 
     if (ref $op eq 'CODE') {
         return $op->(map { _eval($_) } @{$form}[1..@$form-1]);
     } elsif ($op eq 'quote') {
         return $form->[1];
     } elsif ($op eq 'lambda') {
-        print "[$level] LAMBDA $nlamb: ENV = " . dump_env($ENV) . "\n";
-        my $n = $nlamb;
         my $r = sub {
             $ENV = {__parent => $ENV};
             $ENV->{$form->[1][$_]} = $_[$_] for 0..@{$form->[1]}-1;
-            print "args to lambda $n are:\n   " . join("\n   ", map { _print($_) } @_) . "\n";
             my $r = _eval($form->[2]);
             $ENV = $ENV->{__parent};
             return $r;
         };
-        print "[$level] MADE LAMBDA $nlamb\n";
-        $nlamb++;
         return $r;
     } elsif ($op eq 'cond') {
         for (my $i = 1; $i < @$form; $i++) {
-            print "[$level] COND?\n";
-            if (!null(_eval($form->[$i][0], $level+1))) {
-                print "[$level] got\n";
-                return _eval($form->[$i][1], $level+1);
+            if (!null(_eval($form->[$i][0]))) {
+                return _eval($form->[$i][1]);
             }
         }
     }
