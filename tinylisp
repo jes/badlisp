@@ -30,39 +30,27 @@ my $ENV = {
     eq => sub { return shift() eq shift() ? $TRUE : $FALSE },
 };
 
-print "> ";
-while (<>) {
-    print _print(_eval(_read($_), $ENV));
-    print "\n";
-    print "> ";
-}
+print _print(_eval(_read(), $ENV)), "\n" while 1;
 
 sub _eval {
     my ($form, $env) = @_;
     return lookup($form, $env) if !ref $form;
 
-    my $op = _eval(car($form), $env);
+    return $form if null($form);
+    my $op = _eval($form->[0], $env);
 
     if (ref $op eq 'CODE') {
-        return $op->(map { _eval($_, $env) } @{ cdr($form) });
+        return $op->(map { _eval($_, $env) } @{$form}[1..@$form-1]);
     } elsif ($op eq 'quote') {
         return $form->[1];
     } elsif ($op eq 'lambda') {
-        # form[0] = 'lambda'
-        # form[1] = formals
-        # form[2] = body
-        my $parent_env = $ENV;
+        my $parent_env = $env;
         return sub {
-            my @formals = @{ $form->[1] };
             my $env = {__parent => $parent_env};
-            while (my $f = shift @formals) {
-                $env->{$f} = shift @_;
-            }
+            $env->{$form->[1][$_]} = $_[$_] for 0..@{$form->[1]}-1;
             return _eval($form->[2], $env);
         };
     } elsif ($op eq 'cond') {
-        # form[0] = 'cond'
-        # form[1..] = [condition, body]
         for (my $i = 1; $i < @$form; $i++) {
             if (!null(_eval($form->[$i][0],$env))) {
                 return _eval($form->[$i][1], $env);
@@ -85,11 +73,6 @@ sub lookup {
     return $name;
 }
 
-sub car {
-    my ($form) = @_;
-    return $form->[0];
-}
-
 sub cdr {
     my ($form) = @_;
     my @f = @$form;
@@ -98,7 +81,8 @@ sub cdr {
 }
 
 sub _read {
-    my ($str) = @_;
+    print "> ";
+    my $str = join('',<>) // exit 0;
     $str =~ s/([()])/ $1 /g;
     @TOKENS = grep { $_ } split /\s+/, $str;
     return read_form();
