@@ -26,34 +26,47 @@ my $ENV = {
     car => sub { return shift->[0] },
     cdr => sub { my @f = @{shift()};shift @f;return \@f },
     cons => sub { my ($first, $rest) = @_; return [$first, @$rest]; },
-    atom => sub { return (ref shift) ? $FALSE : $TRUE },
-    eq => sub { return shift() eq shift() ? $TRUE : $FALSE },
+    atom => sub { my ($el) = @_; return (!null($el) && ref $el) ? $FALSE : $TRUE },
+    eq => sub { my ($a,$b) = @_; return $TRUE if null($a) && null($b); return ($a eq $b) ? $TRUE : $FALSE; },
 };
 
-print _print(_eval(_read(), $ENV)), "\n" while 1;
+print _print(_eval(_read(), $ENV)), "\n";
 
 sub _eval {
-    my ($form, $env) = @_;
-    return lookup($form, $env) if !ref $form;
+    my $r = __eval(@_);
+    print "<-- " . _print($r) . "\n";
+    return $r;
+}
+
+sub __eval {
+    my ($form) = @_;
+
+    print "EVAL " . _print($form) . "\n";
+    print " --> ENV = " . dump_env($ENV) . "\n";
+
+    return lookup($form, $ENV) if !ref $form;
 
     return $form if null($form);
-    my $op = _eval($form->[0], $env);
+    my $op = _eval($form->[0]);
 
     if (ref $op eq 'CODE') {
-        return $op->(map { _eval($_, $env) } @{$form}[1..@$form-1]);
+        return $op->(map { _eval($_) } @{$form}[1..@$form-1]);
     } elsif ($op eq 'quote') {
         return $form->[1];
     } elsif ($op eq 'lambda') {
-        my $parent_env = $env;
+        print "LAMBDA: ENV = " . dump_env($ENV) . "\n";
         return sub {
-            my $env = {__parent => $parent_env};
-            $env->{$form->[1][$_]} = $_[$_] for 0..@{$form->[1]}-1;
-            return _eval($form->[2], $env);
+            $ENV = {__parent => $ENV};
+            $ENV->{$form->[1][$_]} = $_[$_] for 0..@{$form->[1]}-1;
+            my $r = _eval($form->[2]);
+            $ENV = $ENV->{__parent};
+            return $r;
         };
     } elsif ($op eq 'cond') {
         for (my $i = 1; $i < @$form; $i++) {
-            if (!null(_eval($form->[$i][0],$env))) {
-                return _eval($form->[$i][1], $env);
+            print "COND?\n";
+            if (!null(_eval($form->[$i][0]))) {
+                return _eval($form->[$i][1]);
             }
         }
     }
@@ -70,7 +83,7 @@ sub lookup {
     my ($name, $env) = @_;
     return $env->{$name} if exists $env->{$name};
     return lookup($name, $env->{__parent}) if exists $env->{__parent};
-    return $name;
+    return $name; # incorrect, but required for special forms
 }
 
 sub cdr {
@@ -81,8 +94,7 @@ sub cdr {
 }
 
 sub _read {
-    print "> ";
-    my $str = join('',<>) // exit 0;
+    my $str = join('',<>);
     $str =~ s/([()])/ $1 /g;
     @TOKENS = grep { $_ } split /\s+/, $str;
     return read_form();
@@ -117,4 +129,15 @@ sub _print {
     } else {
         return $v;
     }
+}
+
+sub dump_env {
+    my ($env) = @_;
+    my $r = '';
+    for my $name (keys %$env) {
+        next if $name =~ /__parent/;
+        $r .= "$name = " . _print($env->{$name}) . "\n";
+    }
+    $r .= dump_env($env->{__parent}) if exists $env->{__parent};
+    return $r;
 }
