@@ -1,10 +1,10 @@
 ((lambda (ff lst) (ff lst))
-    (lambda (val)
+    (quote (lambda (val)
         (cond ((atom val) val)
-              (t (ff (car val)))
+              ((quote t) (ff (car val)))
         )
-    )
+    ))
 
-    (quote ((a) b c))))
+    (quote ((a) b c))
 )
 

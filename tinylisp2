@@ -1,0 +1,137 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+my $FALSE = undef;
+my $TRUE = 't';
+
+my @TOKENS;
+
+$| = 1;
+
+print _print(_eval(_read(), undef)), "\n";
+
+sub car { $_[0][0] }
+sub cdr { $_[0][1] }
+sub atom { !ref $_[0] ? $TRUE : $FALSE }
+sub cons { [$_[0], $_[1]] }
+sub _eq { atom($_[0]) && atom($_[1]) && (!defined $_[0] && !defined $_[1]) || (defined $_[0] && defined $_[1] && $_[0] eq $_[1]) ? $TRUE : $FALSE }
+
+sub assoc {
+    my ($x,$y) = @_;
+    return undef if !defined $y;
+    return cdr(car($y)) if $x eq car(car($y));
+    return assoc($x,cdr($y));
+}
+
+sub evcon {
+    my ($c,$a) = @_;
+    return _eval(car(cdr(car($c))),$a) if _eval(car(car($c)), $a);
+    return evcon(cdr($c),$a);
+}
+
+sub pairlis {
+    my ($x,$y,$a) = @_;
+    return $a if !defined $x;
+    return cons(cons(car($x),car($y)), pairlis(cdr($x),cdr($y),$a));
+}
+
+sub evlis {
+    my ($m,$a) = @_;
+    return undef if !defined $m;
+    return cons(_eval(car($m),$a),evlis(cdr($m),$a));
+}
+
+sub apply {
+    my ($fn,$x,$a) = @_;
+    die "can't apply the empty list" if !defined $fn;
+    print "apply " . _print($fn) . "\n";
+    print "to " . _print($x) . "\n";
+    print "with " . _print($a) . "\n";
+    if (atom($fn)) {
+        print "atom fn = $fn\n";
+        return car(car($x)) if _eq($fn,'car');
+        return cdr(car($x)) if _eq($fn,'cdr');
+        return atom(car($x)) if _eq($fn,'atom');
+        return cons(car($x),car(cdr($x))) if _eq($fn,'cons');
+        return _eq(car($x),car(cdr($x))) if _eq($fn,'eq');
+        return apply(_eval($fn,$a),$x,$a);
+    }
+    if (_eq(car($fn),'lambda')) {
+        print "lambda boi\n";
+        print "pairlis = " . _print(pairlis(car(cdr($fn)),$x,$a)) . "\n";
+        return _eval(car(cdr(cdr($fn))),pairlis(car(cdr($fn)),$x,$a));
+    }
+    return undef;
+}
+
+sub _eval {
+    my ($e,$a) = @_;
+    print "eval: " . _print($e) . "\n";
+    print "with: " . _print($a) . "\n";
+    my $r = __eval($e,$a);
+    print "<-- " . _print($r) . "\n";
+    return $r;
+}
+
+sub __eval {
+    my ($e,$a) = @_;
+    return undef if !defined $e;
+    return assoc($e,$a) if atom($e);
+    if (atom(car($e))) {
+        print "atom car e = " . car($e) . "\n";
+        return car(cdr($e)) if _eq(car($e),'quote');
+        return evcon(cdr($e),$a) if _eq(car($e),'cond');
+        die "can't eval lambda" if _eq(car($e),'lambda');
+        return apply(car($e),evlis(cdr($e),$a),$a);
+    }
+    return apply(car($e),evlis(cdr($e),$a),$a);
+}
+
+sub _print {
+    my ($v) = @_;
+    if (ref $v) {
+        return '( ' . _print(car($v)) . ' ' . _print_rest(cdr($v)) . ')';
+    } elsif (defined $v) {
+        return $v;
+    } else {
+        return '()';
+    }
+}
+
+sub _print_rest {
+    my ($v) = @_;
+    if (ref $v) {
+        return _print(car($v)) . ' ' . _print_rest(cdr($v));
+    } elsif (defined $v) {
+        return '. ' . _print($v);
+    } else {
+        return '';
+    }
+}
+
+sub _read {
+    my $str = join('',<>);
+    $str =~ s/([()])/ $1 /g;
+    @TOKENS = grep { $_ } split /\s+/, $str;
+    return read_form();
+}
+
+sub read_form {
+    return undef if @TOKENS == 0;
+    if ($TOKENS[0] eq '(') {
+        shift @TOKENS;
+        return read_list();
+    } else {
+        return shift @TOKENS;
+    }
+}
+
+sub read_list {
+    if ($TOKENS[0] eq ')') {
+        shift @TOKENS;
+        return undef;
+    }
+    return cons(read_form(), read_list());
+}
