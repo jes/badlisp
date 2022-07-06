@@ -1,0 +1,15 @@
+#!/usr/bin/perl
+sub A{$_[0][0]}sub B{$_[0][1]}sub C{!ref$_[0]?'t':$F}sub D{[$_[0], $_[1]]}sub E{
+my($a,$b)=@_;C($a)&& C($b)&&(!defined$a&&!defined$b)||(defined$a&&defined$b&& $a
+eq$b)?'t':$F}sub F{my($x,$y)=@_;defined$y?E($x,A(A$y))?B(A$y):F($x,B$y):$F}sub G
+{my($c,$a)= @_;K(A(A$c),$a)?K(A(B(A $c)),$a):G(B($c), $a)}sub H{my($x,$y,$a)=@_;
+defined$x? D(D(A($x),A$y),H(B($x),B($y),$a)):$a}sub I{my($m,$a)=@_;defined$m?D(K
+(A($m),$a),I(B($m),$a)):$F}sub J{my($f,$x, $a)=@_;C($f)?E($f,'car')?A(A$x):E($f,
+'cdr')?B(A$x):E($f,'atom')?C(A$x):E($f,'cons')?D(A($x),A(B$x)):E($f,'eq')?E(A($x
+),A(B$x)):J(K($f,$a),$x,$a):E(A($f),'lambda')?K(A(B(B $f)),H(A(B $f),$x,$a)):$F}
+sub K{my($e,$a)=@_;defined$e?C($e)?F($e, $a):C(A$e)?E(A($e),'quote')?A(B$e):E(A(
+$e),'cond')?G(B($e),$a):J(A($e),I(B($e),$a),$a):J(A($e),I(B($e),$a),$a):$F}sub L
+{my($v)=@_;ref$v?'('.L(A$v).M(B $v).')':defined$v?$v:'()'}sub M{my($v)=@_;ref$v?
+' '.L(A$v).M(B$v):defined$v?' . '.L($v):''}sub N {$T[0]eq')'?do{shift@T;$F}:D O(
+),N()}sub O {$t=shift @T;$t eq'(' ?N:$t}sub P {$_ =join('', <>);push @T,$1 while
+s/\s*([()]|[^()\s]+)//;O}print L(K P),"\n";"~~~~~~patebit tum quod latuit~~~~~~"
